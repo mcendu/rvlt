@@ -123,6 +123,15 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         b += self._buffer[:self._left]
         return b
 
+    def _dump_buffer(self, size) -> None:
+        """
+        Dump contents of buffer to underlying stream.
+        :param size:
+        :return: None
+        """
+        self._pos = 0
+        self.raw.write(self._buffer[:size])
+
     'Overrides.'
 
     def read(self, size: Optional[int] = -1) -> bytes:
