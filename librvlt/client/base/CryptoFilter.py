@@ -30,7 +30,7 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         """True if _pad has been called at least once."""
 
     @abstractmethod
-    def _encrypt(self, b) -> None:
+    def _encrypt(self, b: bytearray) -> None:
         """
         Processes data passed in.
         """
@@ -64,7 +64,7 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         self._encrypt(self._buffer)
         return self._buf_size
 
-    def _advance_read_pos(self, b):
+    def _advance_read_pos(self, b) -> int:
         """
         Advance self.pos while copying data into b. Stops upon end of buffer.
         :param b: A buffer for writing.
@@ -95,7 +95,7 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         left = len(view)
         if left <= 0:
             return len(b)
-        while left >= self._buf_size:
+        while left >= self._buf_size and self._left < 0:
             # load and unload buffer
             r += self._fill_buffer()
             view[:self._buf_size] = self._buffer[:]
@@ -130,7 +130,40 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         :return: None
         """
         self._pos = 0
+        self._encrypt(self._buffer)
         self.raw.write(self._buffer[:size])
+
+    def _advance_write_pos(self, b: memoryview) -> memoryview:
+        """
+        Advance self.pos while copying data from b. Stops upon end of buffer.
+        :param b: A buffer's view to be read.
+        :return: Data that are not copied into the buffer.
+        """
+        o_view = memoryview(self._buffer)[self._pos:]
+        size_real = min(len(b), len(o_view))
+        o_view[:size_real] = b[:size_real]
+        self._pos += size_real
+        return b[size_real:]
+
+    def _buffered_write(self, b) -> int:
+        """
+        Write data to the buffer, encrypting and flushing upon filling up.
+        :param b: A bytes-like object from which data is read.
+        :return: Amount of bytes written.
+        """
+        view = memoryview(b)
+        view = self._advance_write_pos(view)
+        if len(view) <= 0:
+            return len(b)
+        while len(view) > self._buf_size:
+            self._dump_buffer(self._buf_size)
+            self._buffer[:] = view[:self._buf_size]
+            view = view[self._buf_size:]
+        if len(view) <= 0:
+            return len(b)
+        # Dump remaining data.
+        self._advance_write_pos(view)
+        return len(b)
 
     'Overrides.'
 
@@ -147,10 +180,8 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
     def readable(self) -> bool:
         return self.raw.readable()
 
-    def write(self, b) -> int:
-        """
-        Encrypt b and write the result.
-        """
+    def flush(self) -> None:
+        pass
 
     def writable(self) -> bool:
         if self.readable():
