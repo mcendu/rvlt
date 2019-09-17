@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABCMeta
+from abc import abstractmethod, ABCMeta, ABC
 import errno
 import io
 from os import urandom
@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 
-class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
+class CryptoFilter(ABC, io.BufferedIOBase):
     """
     A cryptographic process presented as a stream.
     """
@@ -33,6 +33,7 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
     def _encrypt(self, b: bytearray) -> None:
         """
         Processes data passed in.
+        :param b: A bytes-like object.
         """
 
     @abstractmethod
@@ -46,6 +47,11 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         size.
         :return: size plus bytes padded, or 0 if no padding is required.
         """
+
+    @property
+    def block_size(self) -> int:
+        """The cipher's block size, or 1 if stream cipher."""
+        return 1
 
     'IO buffering.'
 
@@ -129,9 +135,10 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         :param size:
         :return: None
         """
+        dump_section = self._buffer[:size]
         self._pos = 0
-        self._encrypt(self._buffer)
-        self.raw.write(self._buffer[:size])
+        self._encrypt(dump_section)
+        self.raw.write(dump_section)
 
     def _advance_write_pos(self, b: memoryview) -> memoryview:
         """
@@ -181,12 +188,29 @@ class CryptoFilter(metaclass=ABCMeta, io.BufferedIOBase):
         return self.raw.readable()
 
     def flush(self) -> None:
-        pass
+        if self.writable():
+            # round down operation
+            size_to_flush = self._pos // self.block_size * self.block_size
+            new_pos = self._pos % self.block_size
+            # view of data section to be copied to start
+            view = memoryview(self._buffer)[size_to_flush:]
+            self._dump_buffer(size_to_flush)
+            # copy un-dumped data to start
+            self._buffer[:new_pos] = view[:new_pos]
+            self._pos = new_pos
+
+    def close(self) -> None:
+        if self.writable():
+            self._pos = self._pad(self._buffer, self._pos)
+            self.raw.write(self._buffer[:self._pos])
+        self.raw.close()
+        super(CryptoFilter, self).close()
 
     def writable(self) -> bool:
         if self.readable():
             return False  # prevent writing to protect from data corruption
         return self.raw.writable()
 
-class AEADCryptoFilter(CryptoFilter):
+
+class AEADCryptoFilter(ABC, CryptoFilter):
     pass
