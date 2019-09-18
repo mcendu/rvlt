@@ -13,7 +13,7 @@ class CryptoFilter(ABC, io.BufferedIOBase):
     A cryptographic process presented as a stream.
     """
 
-    def __init__(self, raw: io.BufferedIOBase, buffer=4096):
+    def __init__(self, raw: Union[io.RawIOBase, io.BufferedIOBase], buffer=8192):
         # raw stream
         self.raw = raw
         # internal buffer
@@ -174,8 +174,8 @@ class CryptoFilter(ABC, io.BufferedIOBase):
 
     'Overrides.'
 
-    def read(self, size: Optional[int] = -1) -> bytes:
-        if size < 0:
+    def read(self, size: Optional[int] = None) -> bytes:
+        if size is None or size < 0:
             return self._readall()
         b = bytearray(size)
         r = self.readinto(b)
@@ -186,6 +186,14 @@ class CryptoFilter(ABC, io.BufferedIOBase):
 
     def readable(self) -> bool:
         return self.raw.readable()
+
+    def write(self, b: Union[bytes, bytearray]) -> int:
+        return self._buffered_write(b)
+
+    def writable(self) -> bool:
+        if self.readable():
+            return False  # prevent writing to protect from data corruption
+        return self.raw.writable()
 
     def flush(self) -> None:
         if self.writable():
@@ -205,11 +213,6 @@ class CryptoFilter(ABC, io.BufferedIOBase):
             self.raw.write(self._buffer[:self._pos])
         self.raw.close()
         super(CryptoFilter, self).close()
-
-    def writable(self) -> bool:
-        if self.readable():
-            return False  # prevent writing to protect from data corruption
-        return self.raw.writable()
 
 
 class AEADCryptoFilter(ABC, CryptoFilter):
