@@ -13,7 +13,7 @@ class CryptoFilter(ABC, io.BufferedIOBase):
     A cryptographic process presented as a stream.
     """
 
-    def __init__(self, raw: Union[io.RawIOBase, io.BufferedIOBase], buffer=8192):
+    def __init__(self, raw: io.RawIOBase, buffer=io.DEFAULT_BUFFER_SIZE):
         # raw stream
         self.raw = raw
         # internal buffer
@@ -23,11 +23,6 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         self._left = -1
 
     'Abstract methods.'
-
-    @abstractmethod
-    @property
-    def finalized(self):
-        """True if _pad has been called at least once."""
 
     @abstractmethod
     def _encrypt(self, b: bytearray) -> None:
@@ -48,6 +43,8 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         :return: size plus bytes padded, or 0 if no padding is required.
         """
 
+    'Properties.'
+
     @property
     def block_size(self) -> int:
         """The cipher's block size, or 1 if stream cipher."""
@@ -64,6 +61,8 @@ class CryptoFilter(ABC, io.BufferedIOBase):
             return 0
         self._pos = 0
         r = self.raw.readinto(self._buffer)
+        if r is None:
+            raise BlockingIOError
         if r < self._buf_size:
             self._left = self._pad(self._buffer, r)
             return self._left
@@ -83,7 +82,7 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         if self._left < 0:
             size_real = min(size_real, len(i_view))
         else:
-            size_real = min(size_real, self._left)
+            size_real = min(size_real, self._left - self._pos)
         o_view[:size_real] = i_view[:size_real]
         self._pos += size_real
         return size_real
@@ -115,6 +114,18 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         r += self._advance_read_pos(view)
         return r
 
+    def _readinto1(self, b) -> int:
+        """
+        Implemented similar to read1 as in io.BufferedReader; If at least one
+        byte is buffered, only buffered bytes are returned. Otherwise only one
+        call is made to the raw stream.
+        :return: Bytes read.
+        """
+        if self._pos != self._buf_size:
+            return self._advance_read_pos(b)
+        self._fill_buffer()
+        return self._advance_read_pos(b)
+
     def _readall(self) -> bytes:
         """
         Read all the way to EOF and return the processed data.
@@ -138,7 +149,8 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         dump_section = self._buffer[:size]
         self._pos = 0
         self._encrypt(dump_section)
-        self.raw.write(dump_section)
+        if self.raw.write(dump_section) is None:
+            raise BlockingIOError
 
     def _advance_write_pos(self, b: memoryview) -> memoryview:
         """
@@ -172,9 +184,17 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         self._advance_write_pos(view)
         return len(b)
 
+    def _end_writing(self) -> None:
+        """
+        Finalize the writing session.
+        """
+        if self.writable():
+            self._pos = self._pad(self._buffer, self._pos)
+            self.raw.write(self._buffer[:self._pos])
+
     'Overrides.'
 
-    def read(self, size: Optional[int] = None) -> bytes:
+    def read(self, size: Optional[int] = -1) -> bytes:
         if size is None or size < 0:
             return self._readall()
         b = bytearray(size)
@@ -183,6 +203,16 @@ class CryptoFilter(ABC, io.BufferedIOBase):
 
     def readinto(self, b) -> int:
         return self._non_tty_read(b)
+
+    def read1(self, size: int = -1) -> bytes:
+        if size < 0:
+            b = bytearray(self._buf_size)
+        b = bytearray(min(size, self._buf_size))
+        r = self.readinto1(b)
+        return bytes(b)[:r]
+
+    def readinto1(self, b) -> int:
+        return self._readinto1(b)
 
     def readable(self) -> bool:
         return self.raw.readable()
@@ -194,6 +224,9 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         if self.readable():
             return False  # prevent writing to protect from data corruption
         return self.raw.writable()
+
+    def seekable(self) -> bool:
+        return False
 
     def flush(self) -> None:
         if self.writable():
@@ -207,12 +240,16 @@ class CryptoFilter(ABC, io.BufferedIOBase):
             self._buffer[:new_pos] = view[:new_pos]
             self._pos = new_pos
 
+    def detach(self) -> io.RawIOBase:
+        self._end_writing()
+        raw = self.raw
+        self.raw = None
+        return raw
+
     def close(self) -> None:
-        if self.writable():
-            self._pos = self._pad(self._buffer, self._pos)
-            self.raw.write(self._buffer[:self._pos])
-        self.raw.close()
-        super(CryptoFilter, self).close()
+        self._end_writing()
+        self.raw = None
+        # TODO: set closed to True on close()
 
 
 class AEADCryptoFilter(ABC, CryptoFilter):
