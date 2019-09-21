@@ -14,6 +14,7 @@
 #     limitations under the License.
 """
 the Registration class.
+TODO: Rename this class and create an ABC with the interface of this class
 """
 from hashlib import blake2b
 from os import urandom
@@ -26,6 +27,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import \
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from cryptography.hazmat.primitives.ciphers import (Cipher, algorithms)
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from ..Protocol import Protocol
 
 
 def _gen_login_key(password: bytes, identity: bytes):
@@ -38,7 +40,8 @@ def _gen_login_key(password: bytes, identity: bytes):
     return kdf.derive(kdf_input)
 
 
-class Registration:
+@Protocol.register(1)
+class Registration(Protocol):
     def __init__(self):
         # Hash of private signature key in unencrypted form.
         self.identity: bytes = b''

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #     Copyright mcendu 2019.
 #
 #     Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +17,7 @@ import io
 from abc import abstractmethod, ABC
 from typing import Union, Optional
 
-from .Factory import Factory
+from . import Factory
 
 
 class CryptoFilter(ABC, Factory, io.BufferedIOBase):
