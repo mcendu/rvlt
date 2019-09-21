@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #     Copyright mcendu 2019.
 #
 #     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,9 +14,42 @@
 #     limitations under the License.
 
 
-class Factory(type):
+class Factory:
     """
-    A baseclass for classes that integrate factory methods.
+    Mixin class that introduces a factory method into a class (and its sub-
+    classes).
     """
-    def __new__(cls, *args, **kwargs):
-        pass
+
+    _registry: dict = dict()
+    type_id = None  #
+
+    @classmethod
+    def register(cls, tid):
+        """
+        Inform the parent class of the existence of a subclass under
+        the identifier of tid. A type_id attribute is also assigned to the
+        child.
+        :return: A closure used as a decorator.
+        """
+        def type_id_dec(subclass):
+            if tid in cls._registry:
+                raise KeyError(
+                    f'assigning {tid} to multiple subclasses of {cls}')
+            cls._registry[tid] = subclass
+            subclass.type_id = tid
+            return subclass
+        return type_id_dec
+
+    @classmethod
+    def create(cls, tid, *args, **kwargs):
+        """
+        Create an instance of this class.
+        :param tid: The identifier of a subclass with a @type_id(tid)
+        decorator.
+        """
+        try:
+            subclass: type = cls._registry[tid]
+        except KeyError as err:
+            raise KeyError(
+                f'{err.args[0]} is not an assigned identifier') from err
+        return subclass(*args, **kwargs)

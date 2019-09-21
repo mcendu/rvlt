@@ -1,14 +1,26 @@
-from abc import abstractmethod, ABCMeta, ABC
-import errno
+#!/usr/bin/env python3
+#     Copyright mcendu 2019.
+#
+#     Licensed under the Apache License, Version 2.0 (the "License");
+#     you may not use this file except in compliance with the License.
+#     You may obtain a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#     Unless required by applicable law or agreed to in writing, software
+#     distributed under the License is distributed on an "AS IS" BASIS,
+#     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#     See the License for the specific language governing permissions and
+#     limitations under the License.
+
 import io
-from os import urandom
+from abc import abstractmethod, ABC
 from typing import Union, Optional
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
+from . import Factory
 
 
-class CryptoFilter(ABC, io.BufferedIOBase):
+class CryptoFilter(ABC, Factory, io.BufferedIOBase):
     """
     A cryptographic process presented as a stream.
     """
@@ -205,9 +217,9 @@ class CryptoFilter(ABC, io.BufferedIOBase):
         return self._non_tty_read(b)
 
     def read1(self, size: int = -1) -> bytes:
+        b = bytearray(min(size, self._buf_size))
         if size < 0:
             b = bytearray(self._buf_size)
-        b = bytearray(min(size, self._buf_size))
         r = self.readinto1(b)
         return bytes(b)[:r]
 
