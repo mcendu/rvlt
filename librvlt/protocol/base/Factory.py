@@ -16,8 +16,7 @@
 
 class Factory:
     """
-    Mixin class that introduces a factory method into a class (and its sub-
-    classes).
+    Mixin class that assists in the introduction of a factory method.
     """
 
     _registry: dict = dict()
@@ -41,10 +40,10 @@ class Factory:
         return type_id_dec
 
     @classmethod
-    def create(cls, tid, *args, **kwargs):
+    def lookup(cls, tid) -> type:
         """
-        Create an instance of this class.
-        :param tid: The identifier of a subclass with a @type_id(tid)
+        Lookup in the registry and return a class.
+        :param tid: The identifier of a subclass with a @register(tid)
         decorator.
         """
         try:
@@ -52,4 +51,4 @@ class Factory:
         except KeyError as err:
             raise KeyError(
                 f'{err.args[0]} is not an assigned identifier') from err
-        return subclass(*args, **kwargs)
+        return subclass
