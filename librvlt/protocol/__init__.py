@@ -12,4 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 """Requests and client-side computation."""
-__all__ = ["Registration"]
+
+__all__ = ["Protocol"]
+
+from .Protocol import Protocol
