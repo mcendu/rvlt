@@ -19,7 +19,7 @@ from librvlt.base import Factory
 from librvlt.protocol import Protocol
 
 
-@Protocol.register(0)
+@Protocol.register(0x0001)
 class Registration(ABC, Factory, Protocol):
     """
     Data that describes a user, consisting of their public keys and an

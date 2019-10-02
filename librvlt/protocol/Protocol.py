@@ -12,10 +12,12 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
+import io
 import struct
 from abc import ABC, abstractmethod
+from typing import Optional, BinaryIO
 
-from .base.Factory import Factory
+from librvlt.base import Factory
 
 
 class Protocol(ABC, Factory):
@@ -39,9 +41,35 @@ class Protocol(ABC, Factory):
         """
 
     @abstractmethod
-    def _encode(self) -> bytes:
+    def _encode_header(self) -> bytes:
         """
-        Encode a protocol request/response.
+        Encode the header of a protocol request/response.
         :return: The protocol request/response.
         """
         return struct.pack('>L>L', self.MAGIC, self.type_id)
+
+    @property
+    def body(self) -> Optional[BinaryIO]:
+        """
+        The body of the request/response. This part should only be used
+        for those that can have significant size.
+        """
+        return None
+
+    'Public interface.'
+
+    def dump(self, file: BinaryIO):
+        """
+        Serialize the request/response to a file object.
+        """
+        # header
+        file.write(self._encode_header())
+        if self.body is None:
+            return
+        # body
+        while self.body.closed:
+            file.write(self.body.read(64))
+
+    @staticmethod
+    def load():
+        pass
