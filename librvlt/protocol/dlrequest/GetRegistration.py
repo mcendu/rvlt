@@ -22,12 +22,15 @@ class GetRegistration(Protocol):
     Requests the server to download a registration.
     """
 
-    def _encode_header(self) -> bytes:
-        return (
-            super(GetRegistration, self)._encode_header()
-            + struct.pack(b'>H', len(self.identity))
-            + self.identity
-        )
+    def _encode_header(self) -> bytes: return b''.join((
+            struct.pack(b'>H', len(self.identity)),
+            self.identity
+        ))
+
+    @classmethod
+    def _decode(cls, b):
+        ln: int = struct.unpack(b'>H', b)[0]
+        return cls(b[2:][:ln])
 
     _identity: bytes = b''
 

@@ -35,8 +35,9 @@ class Protocol(ABC, Factory):
     @abstractmethod
     def _decode(cls, b):
         """
-        Decode a protocol request/response to internal form.
-        :param b: The protocol request/response.
+        Decode a protocol request/response. Only the header is processed
+        as the remaining data would go to the body property.
+        :param b: The header of the protocol request/response.
         :return: The decoded object.
         """
 
@@ -46,13 +47,33 @@ class Protocol(ABC, Factory):
         Encode the header of a protocol request/response.
         :return: The protocol request/response.
         """
+
+    'Interface for subclasses.'
+
+    @property
+    def _master_header(self) -> bytes:
         return struct.pack('>L>L', self.MAGIC, self.type_id)
+
+    @staticmethod
+    def has_body(cls: type) -> type:
+        """
+        Declare that a Protocol subclass have a body.
+        """
+        ret = cls
+
+        @property  # replacement function
+        def body(self) -> Optional[BinaryIO]:
+            """
+            The body of the request/response.
+            """
+            return self._body
+        ret.body = body
+        return ret
 
     @property
     def body(self) -> Optional[BinaryIO]:
         """
-        The body of the request/response. This part should only be used
-        for those that can have significant size.
+        The body of the request/response.
         """
         return None
 
@@ -70,6 +91,21 @@ class Protocol(ABC, Factory):
         while self.body.closed:
             file.write(self.body.read(64))
 
-    @staticmethod
-    def load():
-        pass
+    @classmethod
+    def load(cls, file: BinaryIO):
+        """
+        Decode and return a Protocol object.
+        """
+        master = struct.unpack(b'>L>L', file.read(8))
+        if master[0] != cls.MAGIC:
+            raise ValueError(
+                'Attempt to decode corrupted or non-RVLT data'
+            )
+        length = struct.unpack(b'>Q', file.read(8))  # header length
+        header = file.read(length[0])
+        concrete = cls.lookup(master[1])
+        protocol = concrete._decode(header)
+        protocol._body = file
+        if protocol.body is None:
+            file.close()
+        return protocol

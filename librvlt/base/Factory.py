@@ -12,6 +12,7 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
+from typing import Any
 
 
 class Factory:
@@ -20,14 +21,14 @@ class Factory:
     """
 
     _registry: dict = dict()
-    type_id = None  #
 
     @classmethod
-    def register(cls, tid):
+    def register(cls, tid: Any):
         """
-        Inform the parent class of the existence of a subclass under
-        the identifier of tid. A type_id attribute is also assigned to the
-        child.
+        Assign a class to a Factory derivative under tid.
+
+        All classes that are assigned should and should be assumed to
+        conform to an identical interface.
         :return: A closure used as a decorator.
         """
         def type_id_dec(subclass):
@@ -40,7 +41,7 @@ class Factory:
         return type_id_dec
 
     @classmethod
-    def lookup(cls, tid) -> type:
+    def lookup(cls, tid: Any) -> type:
         """
         Lookup in the registry and return a class.
         :param tid: The identifier of a subclass with a @register(tid)
