@@ -41,8 +41,8 @@ class Registration(ABC, Factory, Protocol):
         """The encryption key of the user."""
         pass
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def register(cls, password: bytes):
         """
         Generate a new account.

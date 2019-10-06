@@ -12,11 +12,9 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
-"""
-Core abstractions module.
-"""
+from librvlt.base import Factory
 
-__all__ = ["CryptoFilter", "Factory", "Callbacks",]
 
-from .CryptoFilter import CryptoFilter
-from .Factory import Factory
+class RegFactory(type):
+    pass
+

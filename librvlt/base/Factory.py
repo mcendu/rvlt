@@ -12,7 +12,7 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
-from typing import Any
+from typing import Any, Callable
 
 
 class Factory:
@@ -23,7 +23,7 @@ class Factory:
     _registry: dict = dict()
 
     @classmethod
-    def register(cls, tid: Any):
+    def register(cls, tid: Any) -> Callable[[type], type]:
         """
         Assign a class to a Factory derivative under tid.
 
@@ -31,7 +31,7 @@ class Factory:
         conform to an identical interface.
         :return: A closure used as a decorator.
         """
-        def type_id_dec(subclass):
+        def type_id_dec(subclass: type) -> type:
             if tid in cls._registry:
                 raise KeyError(
                     f'assigning {tid} to multiple subclasses of {cls}')

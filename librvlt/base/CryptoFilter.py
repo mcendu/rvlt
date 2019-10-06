@@ -17,15 +17,24 @@ import io
 from abc import abstractmethod, ABC
 from typing import Union, Optional
 
-from . import Factory
+from librvlt.base import Factory
+from librvlt.base.Callbacks import AEAlgorithm
 
 
 class CryptoFilter(ABC, Factory, io.BufferedIOBase):
     """
     A cryptographic process presented as a stream.
     """
+    """
+    Most public methods here has no __doc__ attached. Public methods
+    without a __doc__ are implementations and therefore do not require
+    it. For usage, see
+    <https://docs.python.org/3/library/io.html#io.BufferedIOBase>.
+    """
 
-    def __init__(self, raw: io.RawIOBase, buffer=io.DEFAULT_BUFFER_SIZE):
+    def __init__(self,
+                 raw: Union[io.RawIOBase, io.BufferedIOBase],
+                 buffer=io.DEFAULT_BUFFER_SIZE):
         # raw stream
         self.raw = raw
         # internal buffer
@@ -258,11 +267,17 @@ class CryptoFilter(ABC, Factory, io.BufferedIOBase):
         self.raw = None
         return raw
 
-    def close(self) -> None:
+    def close(self, close_raw: bool = True) -> None:
         self._end_writing()
+        self.raw.close()
         self.raw = None
         # TODO: set closed to True on close()
 
 
-class AEADCryptoFilter(ABC, CryptoFilter):
-    pass
+class AEADCryptoFilter(type):
+    """
+    Constructs a CryptoFilter subclass given an implementation of
+    base.Callbacks.AEAlgorithm.
+    """
+
+
