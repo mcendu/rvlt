@@ -18,7 +18,7 @@ from abc import abstractmethod, ABC
 from typing import Union, Optional
 
 from librvlt.base import Factory
-from librvlt.base.Callbacks import AEAlgorithm
+from librvlt.base.callbacks import AEAlgorithm
 
 
 class CryptoFilter(ABC, Factory, io.BufferedIOBase):

@@ -16,7 +16,7 @@
 Core abstractions module.
 """
 
-__all__ = ["CryptoFilter", "Factory", "Callbacks",]
+__all__ = ["CryptoFilter", "Factory", "callbacks", ]
 
 from .CryptoFilter import CryptoFilter
 from .Factory import Factory

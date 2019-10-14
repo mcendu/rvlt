@@ -17,7 +17,7 @@
 Callback object interface spec.
 """
 from abc import ABC, abstractmethod
-from typing import NoReturn, Optional, Union
+from typing import NoReturn
 
 from librvlt.base import Factory
 
@@ -31,15 +31,16 @@ class AEAlgorithm(ABC, Factory):
     corrupted or modified in transmission).
     """
 
-    def __init__(
-            self, key: bytes, iv: bytes,
-    ):
-        pass
+    def __init__(self, decrypt: bool = False):
+        if decrypt:
+            self.update = self.decrypt
+        else:
+            self.update = self.encrypt
 
     def update(self, b: bytes):
         """
         Process data passed in. On __init__, this function is replaced
-        with any of the below three functions.
+        with either of the below two functions.
         :param b: Plaintext.
         :return: Ciphertext as bytes.
         """
@@ -57,17 +58,14 @@ class AEAlgorithm(ABC, Factory):
         """Update the MAC without decrypting."""
 
     @abstractmethod
-    def finalize(self) -> bytes:
+    def tag(self) -> bytes:
         """
-        Finalize the algorithm.
-
-        Upon call, sets self.tag to the computed tag and returns the
-        last block + pad (empty string if no padding required).
+        Generate a MAC (message authentication code) from data fed.
         """
 
     @abstractmethod
     def verify(self, b: bytes) -> bool:
-        """Compare an authentication tag against another."""
+        """Compute a MAC and compare it against input."""
 
 
 class KeyExchange(ABC, Factory):
