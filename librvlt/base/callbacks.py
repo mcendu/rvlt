@@ -17,7 +17,7 @@
 Callback object interface spec.
 """
 from abc import ABC, abstractmethod
-from typing import NoReturn
+from typing import NoReturn, Union
 
 from librvlt.base import Factory
 
@@ -68,13 +68,36 @@ class AEAlgorithm(ABC, Factory):
         """Compute a MAC and compare it against input."""
 
 
-class KeyExchange(ABC, Factory):
+class Asymmetric(ABC, Factory):
     """
-    Wrapper for a key exchange/pub-key encryption algorithm.
+    Wrapper for an asymmetric cryptographic process.
     """
 
+    @classmethod
+    @abstractmethod
+    def generate(cls):
+        """
+        Generate a KeyExchange object.
+        """
+        pass
 
-class SignatureSystem(ABC, Factory):
-    """
-    Wrapper for a signature algorithm.
-    """
+    class public(ABC):
+        def __init__(self, val: Union[bytes, Asymmetric]):
+            if isinstance(val, bytes):
+                self.from_bytes(val)
+            else:
+                self.from_private(val)
+
+        @abstractmethod
+        def from_private(self, priv: Asymmetric):
+            """
+            Generate a public key from a private key.
+            """
+            pass
+
+        @abstractmethod
+        def from_bytes(self, b: bytes):
+            """
+            Import a public key.
+            """
+            pass
