@@ -17,7 +17,7 @@
 Callback object interface spec.
 """
 from abc import ABC, abstractmethod
-from typing import NoReturn, Union
+from typing import NoReturn, Union, Callable, Type
 
 from librvlt.base import Factory
 
@@ -68,22 +68,23 @@ class AEAlgorithm(ABC, Factory):
         """Compute a MAC and compare it against input."""
 
 
-
 class _PublicKey(ABC):
+    @property
     @abstractmethod
-    def from_private(self, private):
+    def key(self):
         """
-        Generate a public key from a private key.
+        The underlying object.
         """
-        pass
 
+    @classmethod
     @abstractmethod
-    def from_bytes(self, b):
+    def from_bytes(cls, b):
         """
         Import a public key.
         """
         pass
 
+    @abstractmethod
     def serialize(self) -> bytes:
         """
         Serialize the key.
@@ -95,6 +96,16 @@ class Asymmetric(ABC):
     Wrapper for an asymmetric cryptographic process.
     """
 
+    _public_key_class: Type[_PublicKey]
+
+    @classmethod
+    def public_key_class(cls, target: Type[_PublicKey]) -> type:
+        """
+        Declare a class to be the public key part of this algorithm.
+        """
+        cls._public_key_class = target
+        return target
+
     @classmethod
     @abstractmethod
     def generate(cls):
@@ -104,12 +115,12 @@ class Asymmetric(ABC):
         pass
 
     @classmethod
-    @abstractmethod
     def import_public(cls, b) -> _PublicKey:
         """
         Import a public key.
         :param b: A bytes-like object.
         """
+        return cls._public_key_class.from_bytes(b)
 
     @classmethod
     @abstractmethod
@@ -120,7 +131,7 @@ class Asymmetric(ABC):
         """
 
     @abstractmethod
-    def public(self) -> _PublicKey:
+    def public(self):
         """
         Generate the public key. The public key can be distributed free-
         ly without causing the private key to leak.
@@ -140,19 +151,19 @@ class SignatureAlgorithm(Asymmetric, ABC, Factory):
         :return: The signature.
         """
 
+
+class _SignaturePublicKey(_PublicKey, ABC):
     @abstractmethod
-    class PublicKey(Asymmetric.PublicKey, ABC):
-        @abstractmethod
-        def verify(self, msg, signature) -> bool:
-            """
-            Verify the signature of a message.
-            :return: True if signature matches, false otherwise.
-            """
+    def verify(self, msg, signature) -> bool:
+        """
+        Verify the signature of a message.
+        :return: True if signature matches, false otherwise.
+        """
 
 
 class KeyExchange(Asymmetric, ABC, Factory):
     @abstractmethod
-    def exchange(self, peer: Asymmetric.PublicKey) -> bytes:
+    def exchange(self, peer: _PublicKey) -> bytes:
         """
         Create a shared secret from a private key and a public key.
         :return: The shared secret.
